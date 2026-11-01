@@ -1,0 +1,361 @@
+# ============================================================
+# KNN Classification - Diabetes Prediction
+# ============================================================
+# Algorithm: K-Nearest Neighbors (KNN)
+# Dataset: diabetes.csv
+# Objective: Predict whether a person has diabetes or not.
+# Outcome:
+#   0 -> No Diabetes
+#   1 -> Diabetes
+# ============================================================
+
+
+# ------------------------------------------------------------
+# 1. Import Libraries
+# ------------------------------------------------------------
+
+import pandas as pd
+# pandas is used for handling and analyzing tabular data.
+# It provides the DataFrame structure for storing the dataset.
+# pd.read_csv() is used to read the CSV file.
+
+from sklearn.model_selection import train_test_split
+# train_test_split() divides the dataset into training and
+# testing portions.
+# The training data is used to train the KNN model, while the
+# testing data is used to evaluate its performance.
+
+from sklearn.preprocessing import StandardScaler
+# StandardScaler is used to normalize/standardize numerical
+# features.
+# It transforms the data so that each feature has approximately
+# mean = 0 and standard deviation = 1.
+# This is especially important for KNN because KNN uses distance
+# calculations.
+
+from sklearn.neighbors import KNeighborsClassifier
+# KNeighborsClassifier implements the K-Nearest Neighbors
+# classification algorithm.
+# It predicts the class of a new data point based on the classes
+# of its nearest neighboring training points.
+
+from sklearn.metrics import (
+    confusion_matrix,
+    accuracy_score,
+    precision_score,
+    recall_score
+)
+# These functions are used to evaluate the performance of the
+# trained classification model.
+#
+# confusion_matrix() -> shows correct and incorrect predictions
+# accuracy_score()  -> calculates overall correct predictions
+# precision_score() -> measures how many predicted positives
+#                      are actually positive
+# recall_score()    -> measures how many actual positives were
+#                      correctly identified
+
+
+# ------------------------------------------------------------
+# 2. Read the Dataset
+# ------------------------------------------------------------
+
+data = pd.read_csv("diabetes.csv")
+# pd.read_csv() reads the diabetes.csv file and stores it as
+# a pandas DataFrame.
+#
+# "diabetes.csv" is the path/name of the dataset file.
+#
+# The DataFrame 'data' contains the input features as well as
+# the target column "Outcome".
+
+print("Dataset:")
+# Prints a heading before displaying the dataset.
+
+print(data.head())
+# head() displays the first 5 rows of the DataFrame by default.
+# It is useful for checking whether the dataset has been loaded
+# correctly and understanding its structure.
+
+
+# ------------------------------------------------------------
+# 3. Select Features and Target
+# ------------------------------------------------------------
+
+X = data.drop("Outcome", axis=1)
+# X contains the input features used for prediction.
+#
+# drop("Outcome") removes the target column from the dataset.
+# axis=1 means that we are dropping a COLUMN.
+#
+# After this statement, X contains all columns except Outcome.
+
+y = data["Outcome"]
+# y contains the target/output variable.
+#
+# "Outcome" is the column that we want the KNN model to predict.
+#
+# Typically:
+#   0 -> Person does not have diabetes
+#   1 -> Person has diabetes
+
+
+# ------------------------------------------------------------
+# 4. Split the Dataset
+# ------------------------------------------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+# train_test_split() divides the dataset into training and
+# testing sets.
+#
+# X_train -> input features used for training
+# X_test  -> input features used for testing
+# y_train -> actual target values for training data
+# y_test  -> actual target values for testing data
+#
+# test_size=0.20 means that 20% of the dataset is reserved
+# for testing and 80% is used for training.
+#
+# random_state=42 makes the split reproducible.
+# This means that the same random split is obtained each time
+# the code is executed.
+#
+# stratify=y ensures that the proportion of classes (0 and 1)
+# is approximately maintained in both training and testing sets.
+
+
+# ------------------------------------------------------------
+# 5. Normalize the Features
+# ------------------------------------------------------------
+
+scaler = StandardScaler()
+# Creates a StandardScaler object.
+#
+# StandardScaler standardizes each feature using:
+#
+# standardized value = (value - mean) / standard deviation
+#
+# This gives features approximately:
+# Mean = 0
+# Standard Deviation = 1
+#
+# Scaling is important for KNN because KNN calculates distances.
+# Without scaling, a feature with larger numerical values could
+# have an unnecessarily larger influence on the distance.
+
+
+X_train = scaler.fit_transform(X_train)
+# fit_transform() performs two operations:
+#
+# 1. fit() -> calculates the mean and standard deviation from
+#             the training data.
+#
+# 2. transform() -> uses those calculated values to standardize
+#                   the training data.
+#
+# We calculate scaling parameters ONLY from training data to
+# prevent information from the test set leaking into the model.
+
+
+X_test = scaler.transform(X_test)
+# transform() standardizes the test data using the SAME mean
+# and standard deviation learned from X_train.
+#
+# We do not use fit_transform() on X_test because that would
+# calculate new scaling parameters from the test data and cause
+# data leakage.
+
+
+# ------------------------------------------------------------
+# 6. Initialize and Train KNN
+# ------------------------------------------------------------
+
+knn = KNeighborsClassifier(n_neighbors=5)
+# Creates a KNN classification model.
+#
+# n_neighbors=5 means the model considers the 5 nearest
+# training data points when making a prediction.
+#
+# For example, if 4 out of the 5 nearest neighbors belong to
+# class 1 and 1 belongs to class 0, the model predicts class 1.
+#
+# KNN generally uses majority voting for classification.
+
+
+knn.fit(X_train, y_train)
+# fit() trains the KNN classifier using the training data.
+#
+# X_train contains the input features.
+# y_train contains the corresponding target values.
+#
+# Unlike many algorithms, KNN does not learn complex mathematical
+# parameters during training. It mainly stores the training
+# examples and uses them later to calculate distances to new data.
+
+
+# ------------------------------------------------------------
+# 7. Predict the Test Data
+# ------------------------------------------------------------
+
+y_pred = knn.predict(X_test)
+# predict() uses the trained KNN model to predict the class
+# of every sample in X_test.
+#
+# For every test sample:
+# 1. KNN calculates its distance from training samples.
+# 2. It identifies the 5 nearest neighbors.
+# 3. It checks their class labels.
+# 4. It uses majority voting to select the predicted class.
+#
+# The predictions are stored in y_pred.
+
+
+# ------------------------------------------------------------
+# 8. Calculate Evaluation Metrics
+# ------------------------------------------------------------
+
+cm = confusion_matrix(y_test, y_pred)
+# confusion_matrix() compares the actual values (y_test)
+# with the predicted values (y_pred).
+#
+# For binary classification, the matrix is normally:
+#
+# [[TN, FP],
+#  [FN, TP]]
+#
+# TN = True Negative
+#     Actual = 0, Predicted = 0
+#
+# FP = False Positive
+#     Actual = 0, Predicted = 1
+#
+# FN = False Negative
+#     Actual = 1, Predicted = 0
+#
+# TP = True Positive
+#     Actual = 1, Predicted = 1
+
+
+accuracy = accuracy_score(y_test, y_pred)
+# accuracy_score() calculates the percentage/proportion of
+# predictions that are correct.
+#
+# Formula:
+#
+# Accuracy = (TP + TN) / (TP + TN + FP + FN)
+#
+# A value closer to 1 means more predictions are correct.
+
+
+error_rate = 1 - accuracy
+# Error rate represents the proportion of incorrect predictions.
+#
+# Formula:
+#
+# Error Rate = 1 - Accuracy
+#
+# For example, if accuracy = 0.80:
+# Error Rate = 1 - 0.80 = 0.20
+
+
+precision = precision_score(
+    y_test,
+    y_pred,
+    zero_division=0
+)
+# precision_score() calculates Precision.
+#
+# Formula:
+#
+# Precision = TP / (TP + FP)
+#
+# It answers:
+# "Out of all the people predicted as diabetic, how many
+#  were actually diabetic?"
+#
+# zero_division=0 prevents an error/warning if there are no
+# predicted positive samples. In that situation, precision is
+# returned as 0.
+
+
+recall = recall_score(
+    y_test,
+    y_pred,
+    zero_division=0
+)
+# recall_score() calculates Recall, also called Sensitivity.
+#
+# Formula:
+#
+# Recall = TP / (TP + FN)
+#
+# It answers:
+# "Out of all the people who actually have diabetes, how many
+#  were correctly identified by the model?"
+#
+# zero_division=0 handles the special case where there are no
+# actual positive samples or no positive predictions, avoiding
+# a division-by-zero issue.
+
+
+# ------------------------------------------------------------
+# 9. Display Results
+# ------------------------------------------------------------
+
+print("\nConfusion Matrix:")
+# \n adds a blank line before the text to make the output easier
+# to read.
+
+print(cm)
+# Displays the calculated confusion matrix.
+
+
+print("\nAccuracy:", round(float(accuracy), 4))
+# float(accuracy) converts the value to a standard Python float.
+#
+# round(..., 4) rounds the accuracy to 4 decimal places.
+#
+# Example:
+# 0.792207792 -> 0.7922
+
+
+print(
+    "Accuracy Percentage:",
+    round(float(accuracy) * 100, 2),
+    "%"
+)
+# Converts accuracy from decimal form to percentage form.
+#
+# Example:
+# Accuracy = 0.7922
+# Accuracy Percentage = 79.22%
+
+
+print("Error Rate:", round(float(error_rate), 4))
+# Displays the error rate rounded to 4 decimal places.
+
+
+print(
+    "Error Rate Percentage:",
+    round(float(error_rate) * 100, 2),
+    "%"
+)
+# Converts the error rate into percentage form.
+#
+# Example:
+# Error Rate = 0.2078
+# Error Rate Percentage = 20.78%
+
+
+print("Precision:", round(float(precision), 4))
+# Displays the precision value rounded to 4 decimal places.
+
+
+print("Recall:", round(float(recall), 4))
+# Displays the recall value rounded to 4 decimal places.

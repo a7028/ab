@@ -1,0 +1,677 @@
+# ============================================================
+# ML LAB PRACTICAL 3: CUSTOMER CHURN PREDICTION USING ANN
+# ============================================================
+#
+# Algorithm:
+# Artificial Neural Network (ANN)
+#
+# Techniques:
+# 1. Dropout
+# 2. Early Stopping
+#
+# Dataset:
+# Churn_Modelling.csv
+#
+# Objective:
+# Predict whether a bank customer will exit (churn).
+#
+# Exited:
+#     0 -> Customer stays
+#     1 -> Customer exits / churns
+# ============================================================
+
+
+# ============================================================
+# 1. IMPORT NECESSARY LIBRARIES
+# ============================================================
+
+import pandas as pd
+# Pandas is used for:
+# - Reading the CSV dataset
+# - Creating and manipulating DataFrames
+# - Cleaning and preparing the data
+
+
+import numpy as np
+# NumPy is used for:
+# - Numerical operations
+# - Array manipulation
+# - Converting predicted probabilities into classes
+
+
+from sklearn.model_selection import train_test_split
+# train_test_split divides the dataset into:
+# - Training data
+# - Testing data
+
+
+from sklearn.preprocessing import StandardScaler
+# StandardScaler is used to normalize numerical features.
+# It transforms features so that they have approximately:
+# mean = 0
+# standard deviation = 1
+
+
+from sklearn.metrics import accuracy_score, confusion_matrix
+# accuracy_score calculates the percentage of correct predictions.
+# confusion_matrix shows:
+# - True Negative
+# - False Positive
+# - False Negative
+# - True Positive
+
+
+from tensorflow.keras.models import Sequential
+# Sequential is used to create a neural network
+# layer by layer in sequence.
+
+
+from tensorflow.keras.layers import Dense, Dropout, Input
+# Input defines the shape of input data.
+#
+# Dense creates fully connected neural network layers.
+#
+# Dropout randomly disables some neurons during training
+# to reduce overfitting.
+
+
+from tensorflow.keras.callbacks import EarlyStopping
+# EarlyStopping stops training when the validation
+# performance stops improving.
+
+
+# ============================================================
+# 2. LOAD DATASET
+# ============================================================
+
+def load_dataset(file_path):
+    """
+    Loads the customer churn dataset.
+
+    Parameters:
+        file_path (str): Path/name of the CSV file.
+
+    Returns:
+        DataFrame: Loaded dataset.
+    """
+
+    # Read the CSV file using Pandas
+    data = pd.read_csv(file_path)
+
+    # Display dataset dimensions
+    print("Dataset Shape:", data.shape)
+
+    # Display first five rows
+    print("\nFirst 5 Rows:")
+    print(data.head())
+
+    # Return the dataset
+    return data
+
+
+# ============================================================
+# 3. PREPROCESS DATA
+# ============================================================
+
+def preprocess_data(data):
+    """
+    Preprocesses the customer churn dataset.
+
+    Operations:
+    1. Removes unnecessary identification columns.
+    2. Converts categorical variables into numerical variables.
+    3. Separates features and target.
+
+    Returns:
+        X -> Input features
+        y -> Target variable
+    """
+
+    # --------------------------------------------------------
+    # Remove unnecessary identification columns
+    # --------------------------------------------------------
+
+    # RowNumber is only an index and does not help
+    # predict customer churn.
+    #
+    # CustomerId uniquely identifies a customer but does not
+    # contain useful predictive information.
+    #
+    # Surname is also not required for predicting churn.
+    data = data.drop(
+        [
+            "RowNumber",
+            "CustomerId",
+            "Surname"
+        ],
+        axis=1
+    )
+
+    # --------------------------------------------------------
+    # Convert categorical columns into numerical columns
+    # --------------------------------------------------------
+
+    # Geography and Gender contain text values.
+    #
+    # Machine learning models require numerical input,
+    # so one-hot encoding is used.
+    data = pd.get_dummies(
+        data,
+        columns=[
+            "Geography",
+            "Gender"
+        ],
+        drop_first=True
+    )
+
+    # --------------------------------------------------------
+    # Separate input features and target
+    # --------------------------------------------------------
+
+    # X contains all input features.
+    X = data.drop(
+        "Exited",
+        axis=1
+    )
+
+    # y contains the target variable.
+    #
+    # Exited:
+    # 0 -> Customer stayed
+    # 1 -> Customer exited
+    y = data["Exited"]
+
+    # Display dimensions
+    print("\nFeature Shape:", X.shape)
+    print("Target Shape:", y.shape)
+
+    # Return features and target
+    return X, y
+
+
+# ============================================================
+# 4. SPLIT DATASET
+# ============================================================
+
+def split_data(X, y):
+    """
+    Splits the dataset into training and testing data.
+
+    80% of the data is used for training.
+    20% of the data is used for testing.
+
+    Returns:
+        X_train
+        X_test
+        y_train
+        y_test
+    """
+
+    # Split the dataset
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.20,
+        random_state=42,
+        stratify=y
+    )
+
+    # Display the number of records
+    print("\nTraining samples:", len(X_train))
+    print("Testing samples:", len(X_test))
+
+    # Return the four datasets
+    return X_train, X_test, y_train, y_test
+
+
+# ============================================================
+# 5. NORMALIZE FEATURES
+# ============================================================
+
+def normalize_data(X_train, X_test):
+    """
+    Normalizes numerical features using StandardScaler.
+
+    The scaler is fitted only on training data and then
+    applied to both training and testing data.
+
+    Returns:
+        scaler
+        X_train_scaled
+        X_test_scaled
+    """
+
+    # Create StandardScaler object
+    scaler = StandardScaler()
+
+    # Learn mean and standard deviation from training data
+    # and transform the training data.
+    X_train_scaled = scaler.fit_transform(
+        X_train
+    )
+
+    # Transform test data using the same values learned
+    # from the training data.
+    X_test_scaled = scaler.transform(
+        X_test
+    )
+
+    # Return scaler and normalized datasets
+    return (
+        scaler,
+        X_train_scaled,
+        X_test_scaled
+    )
+
+
+# ============================================================
+# 6. BUILD INITIAL ANN MODEL
+# ============================================================
+
+def build_initial_model(input_size):
+    """
+    Creates the initial Artificial Neural Network.
+
+    Architecture:
+        Input Layer
+        64 neurons
+        32 neurons
+        1 output neuron
+
+    Returns:
+        Compiled ANN model
+    """
+
+    # Create a Sequential neural network
+    model = Sequential([
+
+        # Input layer.
+        # input_size represents the number of features.
+        Input(
+            shape=(input_size,)
+        ),
+
+        # First hidden layer with 64 neurons.
+        # ReLU is used as the activation function.
+        Dense(
+            64,
+            activation="relu"
+        ),
+
+        # Second hidden layer with 32 neurons.
+        Dense(
+            32,
+            activation="relu"
+        ),
+
+        # Output layer.
+        #
+        # One neuron is used because this is binary
+        # classification.
+        #
+        # Sigmoid converts the output into a probability
+        # between 0 and 1.
+        Dense(
+            1,
+            activation="sigmoid"
+        )
+    ])
+
+    # Configure the neural network for training
+    model.compile(
+        optimizer="adam",
+        loss="binary_crossentropy",
+        metrics=["accuracy"]
+    )
+
+    # Display model architecture
+    model.summary()
+
+    # Return the initial model
+    return model
+
+
+# ============================================================
+# 7. BUILD IMPROVED ANN MODEL
+# ============================================================
+
+def build_improved_model(input_size):
+    """
+    Creates an improved ANN using:
+    - Multiple Dense layers
+    - Dropout
+    - Sigmoid output
+
+    Returns:
+        Compiled ANN model
+    """
+
+    # Create Sequential neural network
+    model = Sequential([
+
+        # Input layer
+        Input(
+            shape=(input_size,)
+        ),
+
+        # First hidden layer
+        Dense(
+            64,
+            activation="relu"
+        ),
+
+        # Drop 30% of neurons randomly during training.
+        # This helps reduce overfitting.
+        Dropout(
+            0.3
+        ),
+
+        # Second hidden layer
+        Dense(
+            32,
+            activation="relu"
+        ),
+
+        # Drop 20% of neurons randomly during training.
+        Dropout(
+            0.2
+        ),
+
+        # Third hidden layer
+        Dense(
+            16,
+            activation="relu"
+        ),
+
+        # Output layer
+        Dense(
+            1,
+            activation="sigmoid"
+        )
+    ])
+
+    # Configure the model
+    model.compile(
+        optimizer="adam",
+        loss="binary_crossentropy",
+        metrics=["accuracy"]
+    )
+
+    # Display architecture
+    model.summary()
+
+    # Return model
+    return model
+
+
+# ============================================================
+# 8. CREATE EARLY STOPPING CALLBACK
+# ============================================================
+
+def create_early_stopping():
+    """
+    Creates an EarlyStopping callback.
+
+    Early stopping stops training when validation loss
+    stops improving.
+
+    Returns:
+        EarlyStopping callback
+    """
+
+    early_stop = EarlyStopping(
+        monitor="val_loss",
+        patience=5,
+        restore_best_weights=True
+    )
+
+    return early_stop
+
+
+# ============================================================
+# 9. TRAIN ANN MODEL
+# ============================================================
+
+def train_model(
+    model,
+    X_train,
+    y_train,
+    early_stop
+):
+    """
+    Trains the ANN model.
+
+    Parameters:
+        model      -> Neural network model
+        X_train    -> Training features
+        y_train    -> Training labels
+        early_stop -> EarlyStopping callback
+
+    Returns:
+        Training history
+    """
+
+    # Train the neural network
+    history = model.fit(
+
+        # Training features
+        X_train,
+
+        # Training labels
+        y_train,
+
+        # Maximum number of training iterations
+        epochs=50,
+
+        # Number of samples processed before
+        # updating model weights
+        batch_size=32,
+
+        # 20% of training data is used for validation
+        validation_split=0.20,
+
+        # Apply early stopping
+        callbacks=[early_stop],
+
+        # Display training progress
+        verbose=1
+    )
+
+    # Return training history
+    return history
+
+
+# ============================================================
+# 10. PREDICT TEST DATA
+# ============================================================
+
+def make_predictions(model, X_test):
+    """
+    Uses the trained ANN to predict customer churn.
+
+    The model first produces probabilities.
+    A probability greater than 0.5 is classified as churn.
+
+    Returns:
+        y_pred_prob
+        y_pred
+    """
+
+    # Predict probability of churn
+    y_pred_prob = model.predict(
+        X_test
+    )
+
+    # Convert probabilities into binary classes.
+    #
+    # Probability > 0.5 -> 1 -> Customer exits
+    # Probability <= 0.5 -> 0 -> Customer stays
+    #
+    # astype(int) converts Boolean values into 0 and 1.
+    #
+    # ravel() converts the result into a one-dimensional array.
+    y_pred = (
+        y_pred_prob > 0.5
+    ).astype(int).ravel()
+
+    # Return probability and final prediction
+    return y_pred_prob, y_pred
+
+
+# ============================================================
+# 11. EVALUATE MODEL
+# ============================================================
+
+def evaluate_model(y_test, y_pred):
+    """
+    Evaluates the ANN using:
+    1. Accuracy
+    2. Confusion Matrix
+
+    Returns:
+        accuracy
+        confusion matrix
+    """
+
+    # Calculate accuracy
+    accuracy = accuracy_score(
+        y_test,
+        y_pred
+    )
+
+    # Calculate confusion matrix
+    cm = confusion_matrix(
+        y_test,
+        y_pred
+    )
+
+    # Display accuracy
+    print(
+        "\nAccuracy Score:",
+        round(accuracy, 4)
+    )
+
+    # Display confusion matrix
+    print("\nConfusion Matrix:")
+    print(cm)
+
+    # Return evaluation results
+    return accuracy, cm
+
+
+# ============================================================
+# 12. MAIN FUNCTION
+# ============================================================
+
+def main():
+    """
+    Executes the complete Customer Churn Prediction
+    pipeline using an Artificial Neural Network.
+
+    Workflow:
+        1. Load dataset
+        2. Preprocess data
+        3. Split data
+        4. Normalize features
+        5. Build initial ANN
+        6. Build improved ANN
+        7. Create early stopping
+        8. Train model
+        9. Predict test data
+        10. Evaluate model
+    """
+
+    # --------------------------------------------------------
+    # Step 1: Load dataset
+    # --------------------------------------------------------
+
+    data = load_dataset(
+        "Churn_Modelling.csv"
+    )
+
+    # --------------------------------------------------------
+    # Step 2: Preprocess dataset
+    # --------------------------------------------------------
+
+    X, y = preprocess_data(
+        data
+    )
+
+    # --------------------------------------------------------
+    # Step 3: Split dataset
+    # --------------------------------------------------------
+
+    X_train, X_test, y_train, y_test = split_data(
+        X,
+        y
+    )
+
+    # --------------------------------------------------------
+    # Step 4: Normalize data
+    # --------------------------------------------------------
+
+    scaler, X_train, X_test = normalize_data(
+        X_train,
+        X_test
+    )
+
+    # --------------------------------------------------------
+    # Step 5: Build initial ANN
+    # --------------------------------------------------------
+
+    initial_model = build_initial_model(
+        X_train.shape[1]
+    )
+
+    # --------------------------------------------------------
+    # Step 6: Build improved ANN
+    # --------------------------------------------------------
+
+    model = build_improved_model(
+        X_train.shape[1]
+    )
+
+    # --------------------------------------------------------
+    # Step 7: Create EarlyStopping callback
+    # --------------------------------------------------------
+
+    early_stop = create_early_stopping()
+
+    # --------------------------------------------------------
+    # Step 8: Train improved ANN
+    # --------------------------------------------------------
+
+    history = train_model(
+        model,
+        X_train,
+        y_train,
+        early_stop
+    )
+
+    # --------------------------------------------------------
+    # Step 9: Predict test data
+    # --------------------------------------------------------
+
+    y_pred_prob, y_pred = make_predictions(
+        model,
+        X_test
+    )
+
+    # --------------------------------------------------------
+    # Step 10: Evaluate model
+    # --------------------------------------------------------
+
+    accuracy, cm = evaluate_model(
+        y_test,
+        y_pred
+    )
+
+
+# ============================================================
+# 13. PROGRAM ENTRY POINT
+# ============================================================
+
+if __name__ == "__main__":
+
+    # Start the complete program
+    main()

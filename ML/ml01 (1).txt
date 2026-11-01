@@ -1,0 +1,757 @@
+# ============================================================
+# ML LAB PRACTICAL 1: UBER FARE PREDICTION
+# ============================================================
+# Aim:
+# Predict Uber fares using:
+# 1. Linear Regression
+# 2. Random Forest Regression
+#
+# Dataset:
+# Place "uber.csv" in the same folder as this notebook/script.
+# ============================================================
+
+
+# ============================================================
+# 1. IMPORT NECESSARY LIBRARIES
+# ============================================================
+
+import pandas as pd
+# Pandas is used for:
+# - Reading the CSV file
+# - Creating and manipulating DataFrames
+# - Cleaning and analyzing tabular data
+
+
+import numpy as np
+# NumPy is used for:
+# - Numerical calculations
+# - Mathematical operations
+# - Haversine distance calculation
+
+
+import matplotlib.pyplot as plt
+# Matplotlib is used for:
+# - Creating graphs
+# - Scatter plots
+# - Displaying visualizations
+
+
+import seaborn as sns
+# Seaborn is used for:
+# - Statistical visualizations
+# - Creating the correlation heatmap
+
+
+from sklearn.model_selection import train_test_split
+# train_test_split divides the dataset into:
+# - Training data
+# - Testing data
+
+
+from sklearn.linear_model import LinearRegression
+# LinearRegression implements the Linear Regression algorithm.
+
+
+from sklearn.ensemble import RandomForestRegressor
+# RandomForestRegressor implements the Random Forest Regression algorithm.
+
+
+from sklearn.metrics import (
+    r2_score,
+    mean_absolute_error,
+    mean_squared_error
+)
+# These functions are used to evaluate model performance:
+# R2 Score  -> measures how well the model explains the target
+# MAE       -> average absolute prediction error
+# RMSE      -> square root of average squared prediction error
+
+
+# ============================================================
+# 2. FUNCTION TO LOAD AND DISPLAY DATASET INFORMATION
+# ============================================================
+
+def load_dataset(file_path):
+    """
+    Loads the Uber dataset from a CSV file.
+
+    Parameters:
+        file_path (str): Path/name of the CSV file.
+
+    Returns:
+        pandas.DataFrame: Loaded dataset.
+    """
+
+    # Read the CSV file into a Pandas DataFrame
+    df = pd.read_csv(file_path)
+
+    # Normalize possible column-name errors caused by
+    # copying the code from a PDF.
+    df.rename(
+        columns={
+            "dropoƯ_longitude": "dropoff_longitude",
+            "dropoƯ_latitude": "dropoff_latitude"
+        },
+        inplace=True
+    )
+
+    print("First 5 rows:")
+    print(df.head())
+
+    print("\nDataset Shape:")
+    print(df.shape)
+
+    print("\nDataset Information:")
+    df.info()
+
+    print("\nMissing Values:")
+    print(df.isnull().sum())
+
+    return df
+
+
+# ============================================================
+# 3. DATA PREPROCESSING FUNCTION
+# ============================================================
+
+def preprocess_data(df):
+    """
+    Cleans and preprocesses the Uber dataset.
+
+    Operations performed:
+    - Removes unnecessary columns
+    - Removes duplicate rows
+    - Converts numerical columns to numeric format
+    - Removes missing values
+
+    Parameters:
+        df (DataFrame): Original dataset.
+
+    Returns:
+        DataFrame: Cleaned dataset.
+    """
+
+    # Remove the automatically generated index column if present
+    if "Unnamed: 0" in df.columns:
+        df.drop("Unnamed: 0", axis=1, inplace=True)
+
+    # Remove duplicate records
+    df.drop_duplicates(inplace=True)
+
+    # Define columns that should contain numerical values
+    numeric_columns = [
+        "fare_amount",
+        "pickup_longitude",
+        "pickup_latitude",
+        "dropoff_longitude",
+        "dropoff_latitude",
+        "passenger_count"
+    ]
+
+    # Convert each column into numeric format.
+    # Invalid values are converted into NaN.
+    for col in numeric_columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Remove rows containing missing values
+    df.dropna(inplace=True)
+
+    return df
+
+
+# ============================================================
+# 4. FUNCTION TO REMOVE INVALID VALUES
+# ============================================================
+
+def remove_invalid_values(df):
+    """
+    Removes logically invalid values from the dataset.
+
+    Conditions:
+    - Fare must be greater than 0
+    - Passenger count must be between 1 and 6
+    - Latitude must be between -90 and 90
+    - Longitude must be between -180 and 180
+
+    Parameters:
+        df (DataFrame): Preprocessed dataset.
+
+    Returns:
+        DataFrame: Dataset after removing invalid values.
+    """
+
+    # Remove zero or negative fares
+    df = df[df["fare_amount"] > 0]
+
+    # Passenger count should normally be between 1 and 6
+    df = df[
+        (df["passenger_count"] >= 1) &
+        (df["passenger_count"] <= 6)
+    ]
+
+    # Validate latitude and longitude values
+    df = df[
+        df["pickup_latitude"].between(-90, 90) &
+        df["dropoff_latitude"].between(-90, 90) &
+        df["pickup_longitude"].between(-180, 180) &
+        df["dropoff_longitude"].between(-180, 180)
+    ].copy()
+
+    return df
+
+
+# ============================================================
+# 5. HAVERSINE DISTANCE FUNCTION
+# ============================================================
+
+def haversine(lat1, lon1, lat2, lon2):
+    """
+    Calculates the geographical distance between two points
+    using the Haversine formula.
+
+    The coordinates are given in latitude and longitude.
+
+    Parameters:
+        lat1: Pickup latitude
+        lon1: Pickup longitude
+        lat2: Drop-off latitude
+        lon2: Drop-off longitude
+
+    Returns:
+        Distance between the two points in kilometers.
+    """
+
+    # Radius of Earth in kilometers
+    R = 6371
+
+    # Convert latitude values from degrees to radians
+    lat1 = np.radians(lat1)
+    lat2 = np.radians(lat2)
+
+    # Difference between latitudes
+    dlat = lat2 - lat1
+
+    # Difference between longitudes converted to radians
+    dlon = np.radians(lon2) - np.radians(lon1)
+
+    # Haversine formula
+    a = (
+        np.sin(dlat / 2) ** 2
+        + np.cos(lat1)
+        * np.cos(lat2)
+        * np.sin(dlon / 2) ** 2
+    )
+
+    # Calculate angular distance
+    c = 2 * np.arcsin(np.sqrt(np.clip(a, 0, 1)))
+
+    # Return distance in kilometers
+    return R * c
+
+
+# ============================================================
+# 6. ADD DISTANCE FEATURE
+# ============================================================
+
+def add_distance_feature(df):
+    """
+    Calculates the distance between pickup and drop-off
+    locations and adds it as a new column.
+
+    New column:
+        distance_km
+
+    Parameters:
+        df (DataFrame): Dataset.
+
+    Returns:
+        DataFrame: Dataset with distance_km column.
+    """
+
+    df["distance_km"] = haversine(
+        df["pickup_latitude"],
+        df["pickup_longitude"],
+        df["dropoff_latitude"],
+        df["dropoff_longitude"]
+    )
+
+    # Remove trips having zero distance
+    df = df[df["distance_km"] > 0].copy()
+
+    return df
+
+
+# ============================================================
+# 7. IQR OUTLIER REMOVAL FUNCTION
+# ============================================================
+
+def remove_outliers(data, column):
+    """
+    Removes outliers from a numerical column using
+    the Interquartile Range (IQR) method.
+
+    Formula:
+        IQR = Q3 - Q1
+
+        Lower limit = Q1 - 1.5 * IQR
+        Upper limit = Q3 + 1.5 * IQR
+
+    Parameters:
+        data (DataFrame): Dataset.
+        column (str): Column from which outliers are removed.
+
+    Returns:
+        DataFrame: Dataset without outliers.
+    """
+
+    # First quartile
+    Q1 = data[column].quantile(0.25)
+
+    # Third quartile
+    Q3 = data[column].quantile(0.75)
+
+    # Interquartile range
+    IQR = Q3 - Q1
+
+    # Lower boundary
+    lower_limit = Q1 - 1.5 * IQR
+
+    # Upper boundary
+    upper_limit = Q3 + 1.5 * IQR
+
+    # Keep only values within the acceptable range
+    return data[
+        (data[column] >= lower_limit) &
+        (data[column] <= upper_limit)
+    ].copy()
+
+
+# ============================================================
+# 8. CORRELATION ANALYSIS FUNCTION
+# ============================================================
+
+def correlation_analysis(df):
+    """
+    Calculates and displays the correlation matrix.
+
+    Correlation shows the relationship between numerical
+    variables.
+
+    Values close to:
+        +1 -> Strong positive relationship
+         0 -> Little/no linear relationship
+        -1 -> Strong negative relationship
+    """
+
+    correlation = df[
+        [
+            "fare_amount",
+            "passenger_count",
+            "pickup_longitude",
+            "pickup_latitude",
+            "dropoff_longitude",
+            "dropoff_latitude",
+            "distance_km"
+        ]
+    ].corr()
+
+    print("\nCorrelation Matrix:")
+    print(correlation)
+
+    # Create a heatmap for easier visualization
+    plt.figure(figsize=(10, 6))
+
+    sns.heatmap(
+        correlation,
+        annot=True,
+        cmap="coolwarm",
+        fmt=".2f"
+    )
+
+    plt.title("Correlation Heatmap")
+    plt.tight_layout()
+    plt.show()
+
+    return correlation
+
+
+# ============================================================
+# 9. PREPARE FEATURES AND TARGET
+# ============================================================
+
+def prepare_data(df):
+    """
+    Selects input features and target variable and
+    divides the dataset into training and testing sets.
+
+    X = Input features
+    y = Target variable
+
+    Returns:
+        X_train, X_test, y_train, y_test
+    """
+
+    # Input features used by the ML models
+    X = df[
+        [
+            "passenger_count",
+            "pickup_longitude",
+            "pickup_latitude",
+            "dropoff_longitude",
+            "dropoff_latitude",
+            "distance_km"
+        ]
+    ]
+
+    # Target variable
+    # The model will learn to predict fare_amount.
+    y = df["fare_amount"]
+
+    # Split data:
+    # 80% -> training
+    # 20% -> testing
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.20,
+        random_state=42
+    )
+
+    return X_train, X_test, y_train, y_test
+
+
+# ============================================================
+# 10. LINEAR REGRESSION FUNCTION
+# ============================================================
+
+def train_linear_regression(X_train, y_train, X_test):
+    """
+    Trains a Linear Regression model.
+
+    Linear Regression attempts to find a linear relationship
+    between input features and fare amount.
+
+    Returns:
+        model: Trained Linear Regression model.
+        predictions: Predicted fares.
+    """
+
+    # Create the Linear Regression model
+    model = LinearRegression()
+
+    # Train the model using training data
+    model.fit(X_train, y_train)
+
+    # Predict fares for test data
+    predictions = model.predict(X_test)
+
+    return model, predictions
+
+
+# ============================================================
+# 11. RANDOM FOREST REGRESSION FUNCTION
+# ============================================================
+
+def train_random_forest(X_train, y_train, X_test):
+    """
+    Trains a Random Forest Regression model.
+
+    Random Forest combines multiple decision trees
+    to improve prediction performance.
+
+    Parameters:
+        X_train: Training features
+        y_train: Training target
+        X_test: Testing features
+
+    Returns:
+        model: Trained Random Forest model.
+        predictions: Predicted fares.
+    """
+
+    # Create Random Forest model.
+    #
+    # n_estimators = number of decision trees.
+    # random_state = makes results reproducible.
+    # n_jobs = -1 uses all available CPU cores.
+    model = RandomForestRegressor(
+        n_estimators=100,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    # Train the model
+    model.fit(X_train, y_train)
+
+    # Predict fares for test data
+    predictions = model.predict(X_test)
+
+    return model, predictions
+
+
+# ============================================================
+# 12. MODEL EVALUATION FUNCTION
+# ============================================================
+
+def evaluate_model(name, actual, predicted):
+    """
+    Evaluates the performance of a regression model.
+
+    Metrics:
+        R2 Score
+        MAE
+        RMSE
+
+    Parameters:
+        name: Model name
+        actual: Actual target values
+        predicted: Model predictions
+
+    Returns:
+        Tuple containing R2, MAE and RMSE.
+    """
+
+    # R2 score measures how well the model explains
+    # variation in the target variable.
+    r2 = r2_score(actual, predicted)
+
+    # Mean Absolute Error measures the average
+    # absolute difference between actual and predicted values.
+    mae = mean_absolute_error(actual, predicted)
+
+    # Mean Squared Error is calculated first.
+    mse = mean_squared_error(actual, predicted)
+
+    # RMSE is the square root of MSE.
+    rmse = np.sqrt(mse)
+
+    print("\n" + name)
+    print("---------------------------")
+    print("R2 Score :", round(r2, 4))
+    print("MAE      :", round(mae, 4))
+    print("RMSE     :", round(rmse, 4))
+
+    return r2, mae, rmse
+
+
+# ============================================================
+# 13. MODEL COMPARISON FUNCTION
+# ============================================================
+
+def compare_models(linear_scores, rf_scores):
+    """
+    Creates a DataFrame comparing the performance
+    of Linear Regression and Random Forest Regression.
+
+    Returns:
+        DataFrame containing model evaluation scores.
+    """
+
+    results = pd.DataFrame({
+        "Model": [
+            "Linear Regression",
+            "Random Forest Regression"
+        ],
+
+        "R2 Score": [
+            linear_scores[0],
+            rf_scores[0]
+        ],
+
+        "MAE": [
+            linear_scores[1],
+            rf_scores[1]
+        ],
+
+        "RMSE": [
+            linear_scores[2],
+            rf_scores[2]
+        ]
+    })
+
+    print("\nModel Comparison:")
+    print(results)
+
+    return results
+
+
+# ============================================================
+# 14. ACTUAL VS PREDICTED GRAPH
+# ============================================================
+
+def plot_actual_vs_predicted(actual, predicted):
+    """
+    Creates a scatter plot comparing actual fares
+    with predicted fares.
+
+    If predictions are close to actual values, points
+    will generally be closer to a diagonal relationship.
+    """
+
+    plt.figure(figsize=(8, 5))
+
+    plt.scatter(
+        actual,
+        predicted,
+        alpha=0.5
+    )
+
+    plt.xlabel("Actual Fare")
+    plt.ylabel("Predicted Fare")
+    plt.title("Actual vs Predicted Fare - Random Forest")
+
+    plt.tight_layout()
+    plt.show()
+
+
+# ============================================================
+# 15. MAIN FUNCTION
+# ============================================================
+
+def main():
+    """
+    Main function that executes the complete Uber Fare
+    Prediction Machine Learning pipeline.
+
+    Steps:
+    1. Load dataset
+    2. Preprocess data
+    3. Remove invalid values
+    4. Calculate distance
+    5. Remove outliers
+    6. Perform correlation analysis
+    7. Split data
+    8. Train Linear Regression
+    9. Train Random Forest
+    10. Evaluate both models
+    11. Compare models
+    12. Plot predictions
+    """
+
+    # --------------------------------------------------------
+    # Step 1: Load dataset
+    # --------------------------------------------------------
+
+    df = load_dataset("uber.csv")
+
+    # --------------------------------------------------------
+    # Step 2: Preprocess dataset
+    # --------------------------------------------------------
+
+    df = preprocess_data(df)
+
+    # --------------------------------------------------------
+    # Step 3: Remove invalid values
+    # --------------------------------------------------------
+
+    df = remove_invalid_values(df)
+
+    # --------------------------------------------------------
+    # Step 4: Calculate distance between pickup and drop-off
+    # --------------------------------------------------------
+
+    df = add_distance_feature(df)
+
+    # --------------------------------------------------------
+    # Step 5: Remove outliers
+    # --------------------------------------------------------
+
+    print("\nShape before removing outliers:", df.shape)
+
+    # Remove fare amount outliers
+    df = remove_outliers(df, "fare_amount")
+
+    # Remove distance outliers
+    df = remove_outliers(df, "distance_km")
+
+    print("Shape after removing outliers:", df.shape)
+
+    # --------------------------------------------------------
+    # Step 6: Correlation analysis
+    # --------------------------------------------------------
+
+    correlation_analysis(df)
+
+    # --------------------------------------------------------
+    # Step 7: Prepare training and testing data
+    # --------------------------------------------------------
+
+    X_train, X_test, y_train, y_test = prepare_data(df)
+
+    print("\nTraining samples:", len(X_train))
+    print("Testing samples :", len(X_test))
+
+    # --------------------------------------------------------
+    # Step 8: Train Linear Regression
+    # --------------------------------------------------------
+
+    linear_model, linear_prediction = train_linear_regression(
+        X_train,
+        y_train,
+        X_test
+    )
+
+    # --------------------------------------------------------
+    # Step 9: Train Random Forest Regression
+    # --------------------------------------------------------
+
+    random_forest, rf_prediction = train_random_forest(
+        X_train,
+        y_train,
+        X_test
+    )
+
+    # --------------------------------------------------------
+    # Step 10: Evaluate Linear Regression
+    # --------------------------------------------------------
+
+    linear_scores = evaluate_model(
+        "Linear Regression",
+        y_test,
+        linear_prediction
+    )
+
+    # --------------------------------------------------------
+    # Step 11: Evaluate Random Forest
+    # --------------------------------------------------------
+
+    rf_scores = evaluate_model(
+        "Random Forest Regression",
+        y_test,
+        rf_prediction
+    )
+
+    # --------------------------------------------------------
+    # Step 12: Compare both models
+    # --------------------------------------------------------
+
+    results = compare_models(
+        linear_scores,
+        rf_scores
+    )
+
+    # --------------------------------------------------------
+    # Step 13: Display comparison table
+    # --------------------------------------------------------
+
+    print("\nFinal Model Comparison:")
+    print(results.to_string(index=False))
+
+    # --------------------------------------------------------
+    # Step 14: Plot Actual vs Predicted Fare
+    # --------------------------------------------------------
+
+    plot_actual_vs_predicted(
+        y_test,
+        rf_prediction
+    )
+
+
+# ============================================================
+# 16. PROGRAM ENTRY POINT
+# ============================================================
+
+if __name__ == "__main__":
+    # This calls main() only when this file is executed
+    # directly, rather than imported as a module.
+    main()

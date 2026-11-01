@@ -1,0 +1,628 @@
+# ============================================================
+# ML LAB PRACTICAL 2: EMAIL SPAM CLASSIFICATION
+# ============================================================
+#
+# Aim:
+# Classify emails as Spam or Non-Spam using:
+# 1. K-Nearest Neighbors (KNN)
+# 2. Support Vector Machine (SVM)
+#
+# Dataset:
+# emails.csv
+#
+# Expected columns:
+#     text -> Email message
+#     spam -> Target value
+#
+# spam = 0 -> Normal / Non-Spam email
+# spam = 1 -> Spam email
+# ============================================================
+
+
+# ============================================================
+# 1. IMPORT NECESSARY LIBRARIES
+# ============================================================
+
+import pandas as pd
+# Pandas is used to:
+# - Read the CSV dataset
+# - Store data in DataFrame format
+# - Clean and manipulate the dataset
+
+
+from sklearn.model_selection import train_test_split
+# train_test_split is used to divide the dataset into:
+# - Training data
+# - Testing data
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+# TfidfVectorizer converts text/email messages into numerical
+# TF-IDF features that machine learning algorithms can understand.
+
+
+from sklearn.neighbors import KNeighborsClassifier
+# KNeighborsClassifier implements the K-Nearest Neighbors
+# classification algorithm.
+
+
+from sklearn.svm import SVC
+# SVC stands for Support Vector Classifier.
+# It implements the Support Vector Machine algorithm.
+
+
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    classification_report
+)
+# These functions are used to evaluate classification models:
+#
+# accuracy_score       -> Overall percentage of correct predictions
+# precision_score      -> How many predicted spam emails are actually spam
+# recall_score         -> How many actual spam emails were detected
+# f1_score             -> Balance between precision and recall
+# classification_report -> Displays all major classification metrics
+
+
+# ============================================================
+# 2. LOAD AND INSPECT DATASET
+# ============================================================
+
+def load_dataset(file_path):
+    """
+    Loads the email dataset from a CSV file.
+
+    Parameters:
+        file_path (str): Path/name of the CSV file.
+
+    Returns:
+        DataFrame: Loaded email dataset.
+    """
+
+    # Read the CSV file using Pandas
+    data = pd.read_csv(file_path)
+
+    # Display the number of rows and columns
+    print("Dataset Shape:", data.shape)
+
+    # Display the first five records
+    print("\nFirst 5 Rows:")
+    print(data.head())
+
+    # Display column names
+    print("\nColumns:")
+    print(data.columns)
+
+    # Return the loaded dataset
+    return data
+
+
+# ============================================================
+# 3. CLEAN DATA
+# ============================================================
+
+def clean_data(data):
+    """
+    Cleans the email dataset.
+
+    Operations:
+    - Removes duplicate emails
+    - Removes rows where text or spam value is missing
+    - Displays class distribution
+
+    Parameters:
+        data (DataFrame): Original dataset.
+
+    Returns:
+        DataFrame: Cleaned dataset.
+    """
+
+    # Remove duplicate rows.
+    #
+    # drop_duplicates() removes identical records.
+    data = data.drop_duplicates()
+
+    # Remove rows where either:
+    # - email text is missing
+    # - spam label is missing
+    #
+    # subset specifies the columns to check.
+    data = data.dropna(
+        subset=["text", "spam"]
+    ).copy()
+
+    # Display the shape after cleaning
+    print("\nCleaned Dataset Shape:", data.shape)
+
+    # Display the number of normal and spam emails
+    print("\nClass Distribution:")
+    print(data["spam"].value_counts())
+
+    # Return cleaned dataset
+    return data
+
+
+# ============================================================
+# 4. SPLIT FEATURES AND TARGET
+# ============================================================
+
+def split_dataset(data):
+    """
+    Separates the email text from the target label
+    and divides the data into training and testing sets.
+
+    X = Email text
+    y = Spam/Non-Spam label
+
+    Returns:
+        X_train, X_test, y_train, y_test
+    """
+
+    # Input feature.
+    #
+    # Each email's text is the input to the machine learning model.
+    X = data["text"]
+
+    # Target variable.
+    #
+    # 0 = Normal email
+    # 1 = Spam email
+    y = data["spam"]
+
+    # Split the dataset into training and testing sets.
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.20,
+        random_state=42,
+        stratify=y
+    )
+
+    # Display number of training samples
+    print("\nTraining samples:", len(X_train))
+
+    # Display number of testing samples
+    print("Testing samples:", len(X_test))
+
+    # Return all four datasets
+    return X_train, X_test, y_train, y_test
+
+
+# ============================================================
+# 5. TF-IDF FEATURE EXTRACTION
+# ============================================================
+
+def convert_text_to_tfidf(X_train, X_test):
+    """
+    Converts email text into numerical TF-IDF features.
+
+    TF-IDF stands for:
+        Term Frequency - Inverse Document Frequency
+
+    It assigns importance to words based on:
+    - How frequently they appear in a particular email
+    - How common they are across all emails
+
+    Returns:
+        vectorizer
+        X_train_tfidf
+        X_test_tfidf
+    """
+
+    # Create the TF-IDF vectorizer.
+    #
+    # stop_words="english":
+    # Removes common English words such as:
+    # the, is, and, of, etc.
+    #
+    # max_features=5000:
+    # Uses at most 5000 of the most useful vocabulary terms.
+    vectorizer = TfidfVectorizer(
+        stop_words="english",
+        max_features=5000
+    )
+
+    # Learn the vocabulary from training emails
+    # and convert them into TF-IDF numerical features.
+    X_train_tfidf = vectorizer.fit_transform(X_train)
+
+    # Convert test emails using the SAME vocabulary learned
+    # from the training data.
+    #
+    # transform() is used instead of fit_transform()
+    # to prevent data leakage from the test set.
+    X_test_tfidf = vectorizer.transform(X_test)
+
+    # Display the dimensions of the TF-IDF matrices
+    print("\nTraining TF-IDF Shape:", X_train_tfidf.shape)
+    print("Testing TF-IDF Shape:", X_test_tfidf.shape)
+
+    # Return vectorizer and transformed data
+    return vectorizer, X_train_tfidf, X_test_tfidf
+
+
+# ============================================================
+# 6. TRAIN AND EVALUATE KNN
+# ============================================================
+
+def train_and_evaluate_knn(
+    X_train_tfidf,
+    y_train,
+    X_test_tfidf,
+    y_test
+):
+    """
+    Trains and evaluates a K-Nearest Neighbors classifier.
+
+    KNN classifies an email based on the classes of its
+    nearest neighboring emails.
+
+    Returns:
+        model
+        predictions
+        evaluation scores
+    """
+
+    # Create KNN classifier.
+    #
+    # n_neighbors=5 means the model looks at the
+    # 5 nearest training examples.
+    knn = KNeighborsClassifier(
+        n_neighbors=5
+    )
+
+    # Train the KNN model
+    knn.fit(
+        X_train_tfidf,
+        y_train
+    )
+
+    # Predict classes for test emails
+    y_pred_knn = knn.predict(
+        X_test_tfidf
+    )
+
+    # Calculate accuracy
+    knn_accuracy = accuracy_score(
+        y_test,
+        y_pred_knn
+    )
+
+    # Calculate precision
+    knn_precision = precision_score(
+        y_test,
+        y_pred_knn,
+        zero_division=0
+    )
+
+    # Calculate recall
+    knn_recall = recall_score(
+        y_test,
+        y_pred_knn,
+        zero_division=0
+    )
+
+    # Calculate F1 score
+    knn_f1 = f1_score(
+        y_test,
+        y_pred_knn,
+        zero_division=0
+    )
+
+    # Display KNN performance
+    print("\n----- KNN PERFORMANCE -----")
+
+    print("Accuracy :", round(knn_accuracy, 4))
+    print("Precision:", round(knn_precision, 4))
+    print("Recall   :", round(knn_recall, 4))
+    print("F1 Score :", round(knn_f1, 4))
+
+    # Display detailed classification report
+    print("\nClassification Report - KNN")
+
+    print(
+        classification_report(
+            y_test,
+            y_pred_knn,
+            zero_division=0
+        )
+    )
+
+    # Store evaluation scores
+    scores = {
+        "accuracy": knn_accuracy,
+        "precision": knn_precision,
+        "recall": knn_recall,
+        "f1": knn_f1
+    }
+
+    # Return model, predictions and scores
+    return knn, y_pred_knn, scores
+
+
+# ============================================================
+# 7. TRAIN AND EVALUATE SVM
+# ============================================================
+
+def train_and_evaluate_svm(
+    X_train_tfidf,
+    y_train,
+    X_test_tfidf,
+    y_test
+):
+    """
+    Trains and evaluates a Support Vector Machine classifier.
+
+    The linear SVM finds a decision boundary that separates
+    spam and non-spam emails.
+
+    Returns:
+        model
+        predictions
+        evaluation scores
+    """
+
+    # Create the SVM classifier.
+    #
+    # kernel="linear" means a linear decision boundary
+    # is used for classification.
+    svm = SVC(
+        kernel="linear"
+    )
+
+    # Train the SVM model
+    svm.fit(
+        X_train_tfidf,
+        y_train
+    )
+
+    # Predict classes for test emails
+    y_pred_svm = svm.predict(
+        X_test_tfidf
+    )
+
+    # Calculate accuracy
+    svm_accuracy = accuracy_score(
+        y_test,
+        y_pred_svm
+    )
+
+    # Calculate precision
+    svm_precision = precision_score(
+        y_test,
+        y_pred_svm,
+        zero_division=0
+    )
+
+    # Calculate recall
+    svm_recall = recall_score(
+        y_test,
+        y_pred_svm,
+        zero_division=0
+    )
+
+    # Calculate F1 score
+    svm_f1 = f1_score(
+        y_test,
+        y_pred_svm,
+        zero_division=0
+    )
+
+    # Display SVM performance
+    print("\n----- SVM PERFORMANCE -----")
+
+    print("Accuracy :", round(svm_accuracy, 4))
+    print("Precision:", round(svm_precision, 4))
+    print("Recall   :", round(svm_recall, 4))
+    print("F1 Score :", round(svm_f1, 4))
+
+    # Display detailed classification report
+    print("\nClassification Report - SVM")
+
+    print(
+        classification_report(
+            y_test,
+            y_pred_svm,
+            zero_division=0
+        )
+    )
+
+    # Store evaluation scores
+    scores = {
+        "accuracy": svm_accuracy,
+        "precision": svm_precision,
+        "recall": svm_recall,
+        "f1": svm_f1
+    }
+
+    # Return model, predictions and scores
+    return svm, y_pred_svm, scores
+
+
+# ============================================================
+# 8. MODEL COMPARISON
+# ============================================================
+
+def compare_models(knn_scores, svm_scores):
+    """
+    Compares KNN and SVM using their evaluation metrics.
+
+    Metrics compared:
+        Accuracy
+        Precision
+        Recall
+        F1 Score
+
+    Returns:
+        DataFrame containing model comparison.
+    """
+
+    # Create a DataFrame containing the performance
+    # of both machine learning algorithms.
+    results = pd.DataFrame({
+
+        "Model": [
+            "KNN",
+            "SVM"
+        ],
+
+        "Accuracy": [
+            knn_scores["accuracy"],
+            svm_scores["accuracy"]
+        ],
+
+        "Precision": [
+            knn_scores["precision"],
+            svm_scores["precision"]
+        ],
+
+        "Recall": [
+            knn_scores["recall"],
+            svm_scores["recall"]
+        ],
+
+        "F1 Score": [
+            knn_scores["f1"],
+            svm_scores["f1"]
+        ]
+    })
+
+    # Display model comparison
+    print("\n----- MODEL COMPARISON -----")
+
+    print(
+        results.to_string(
+            index=False
+        )
+    )
+
+    # Determine which model has higher accuracy
+    if svm_scores["accuracy"] > knn_scores["accuracy"]:
+
+        print(
+            "\nSVM performs better than KNN "
+            "based on accuracy."
+        )
+
+    elif knn_scores["accuracy"] > svm_scores["accuracy"]:
+
+        print(
+            "\nKNN performs better than SVM "
+            "based on accuracy."
+        )
+
+    else:
+
+        print(
+            "\nBoth models have the same accuracy."
+        )
+
+    # Return comparison table
+    return results
+
+
+# ============================================================
+# 9. MAIN FUNCTION
+# ============================================================
+
+def main():
+    """
+    Main function that executes the complete
+    Email Spam Classification pipeline.
+
+    Workflow:
+        1. Load dataset
+        2. Clean data
+        3. Split dataset
+        4. Convert text to TF-IDF
+        5. Train KNN
+        6. Train SVM
+        7. Evaluate models
+        8. Compare models
+    """
+
+    # --------------------------------------------------------
+    # Step 1: Load dataset
+    # --------------------------------------------------------
+
+    data = load_dataset(
+        "emails.csv"
+    )
+
+    # --------------------------------------------------------
+    # Step 2: Clean dataset
+    # --------------------------------------------------------
+
+    data = clean_data(
+        data
+    )
+
+    # --------------------------------------------------------
+    # Step 3: Split dataset
+    # --------------------------------------------------------
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        data
+    )
+
+    # --------------------------------------------------------
+    # Step 4: Convert email text into TF-IDF features
+    # --------------------------------------------------------
+
+    vectorizer, X_train_tfidf, X_test_tfidf = (
+        convert_text_to_tfidf(
+            X_train,
+            X_test
+        )
+    )
+
+    # --------------------------------------------------------
+    # Step 5: Train and evaluate KNN
+    # --------------------------------------------------------
+
+    knn, y_pred_knn, knn_scores = (
+        train_and_evaluate_knn(
+            X_train_tfidf,
+            y_train,
+            X_test_tfidf,
+            y_test
+        )
+    )
+
+    # --------------------------------------------------------
+    # Step 6: Train and evaluate SVM
+    # --------------------------------------------------------
+
+    svm, y_pred_svm, svm_scores = (
+        train_and_evaluate_svm(
+            X_train_tfidf,
+            y_train,
+            X_test_tfidf,
+            y_test
+        )
+    )
+
+    # --------------------------------------------------------
+    # Step 7: Compare both models
+    # --------------------------------------------------------
+
+    results = compare_models(
+        knn_scores,
+        svm_scores
+    )
+
+
+# ============================================================
+# 10. PROGRAM ENTRY POINT
+# ============================================================
+
+if __name__ == "__main__":
+
+    # Call the main function.
+    #
+    # This starts the complete spam classification
+    # program when this Python file is executed directly.
+    main()

@@ -1,0 +1,139 @@
+# ============================================================
+# Gradient Descent
+# ============================================================
+# Objective:
+# Find the value of x at which the function
+# f(x) = (x + 3)^2
+# reaches its minimum value.
+#
+# The minimum occurs at:
+# x = -3
+# f(-3) = 0
+# ============================================================
+
+
+# ------------------------------------------------------------
+# 1. Define the Function
+# ------------------------------------------------------------
+
+def f(x):
+    # This function calculates the value of the objective
+    # function f(x) = (x + 3)^2.
+    #
+    # x is the input value.
+    # The function returns the corresponding y/value.
+    
+    return (x + 3) ** 2
+    # ** is the exponentiation operator in Python.
+    # Therefore, (x + 3) ** 2 means:
+    # (x + 3) × (x + 3)
+
+
+# ------------------------------------------------------------
+# 2. Define the Derivative
+# ------------------------------------------------------------
+
+def derivative(x):
+    # This function calculates the derivative (gradient) of
+    # the function f(x) = (x + 3)^2.
+    #
+    # The derivative tells us the direction and steepness
+    # of the function at a particular value of x.
+
+    return 2 * (x + 3)
+    # The derivative of:
+    #
+    # f(x) = (x + 3)^2
+    #
+    # is:
+    #
+    # f'(x) = 2(x + 3)
+    #
+    # This derivative is used by Gradient Descent to determine
+    # which direction x should move.
+
+
+# ------------------------------------------------------------
+# 3. Set the Initial Values
+# ------------------------------------------------------------
+
+x = 2
+# This is the initial/random starting value of x.
+#
+# Gradient Descent starts from this point and gradually moves
+# toward the minimum of the function.
+
+
+learning_rate = 0.1
+# Learning rate controls how large each update step is.
+#
+# A larger learning rate makes bigger movements toward the
+# minimum, while a smaller learning rate makes smaller movements.
+#
+# Here, the learning rate is 0.1.
+
+
+iterations = 100
+# The algorithm will perform the Gradient Descent update
+# 100 times.
+#
+# Each iteration moves x closer to the minimum.
+
+
+# ------------------------------------------------------------
+# 4. Gradient Descent
+# ------------------------------------------------------------
+
+for i in range(iterations):
+    # range(iterations) generates numbers from 0 to 99.
+    #
+    # Therefore, this loop executes 100 times.
+    #
+    # Each loop represents one Gradient Descent iteration.
+
+
+    gradient = derivative(x)
+    # Calculate the derivative/gradient at the current value of x.
+    #
+    # The gradient tells us the slope of the function at the
+    # current point.
+    #
+    # Positive gradient -> move x toward a smaller value.
+    # Negative gradient -> move x toward a larger value.
+
+
+    x = x - learning_rate * gradient
+    # This is the main Gradient Descent update formula:
+    #
+    # x_new = x_old - learning_rate × gradient
+    #
+    # The minus sign is important because we want to move
+    # in the direction where the function decreases.
+    #
+    # After every iteration, x gets closer to the minimum point.
+
+
+# ------------------------------------------------------------
+# 5. Display the Result
+# ------------------------------------------------------------
+
+print("Minimum point x =", round(x, 6))
+# round(x, 6) rounds the final x value to 6 decimal places.
+#
+# The result should be very close to:
+# x = -3
+
+
+print("Minimum value y =", round(f(x), 10))
+# f(x) calculates the value of the function at the final
+# value of x.
+#
+# Since the minimum occurs at x = -3:
+#
+# f(-3) = (-3 + 3)^2
+#       = 0^2
+#       = 0
+#
+# Therefore, the minimum value should be very close to 0.
+#
+# round(..., 10) displays the result up to 10 decimal places.
