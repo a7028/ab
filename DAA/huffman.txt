@@ -1,0 +1,142 @@
+"""Explanation 
+
+This Python program implements Huffman Encoding using a greedy strategy to compress text by assigning shorter binary codes to more frequent characters and longer codes to less frequent characters. First, the program uses Counter to calculate the frequency of each character in the input text. A Node class is used to represent characters and nodes of the Huffman tree, while heapq creates a min-priority queue so that the two least frequent nodes can be selected efficiently. The build_tree() function repeatedly removes the two nodes with the smallest frequencies, combines them into a new parent node, and inserts the parent back into the priority queue. This greedy process continues until only the root of the Huffman tree remains. The generate_codes() function traverses the tree, assigning 0 to the left edge and 1 to the right edge, producing a unique binary code for every character. The encode() function replaces each character in the original text with its Huffman code, while the decode() function traverses the tree using the encoded bits to reconstruct the original text. Finally, the program compares the number of bits used by normal ASCII representation with the number of bits used by Huffman encoding to show the compression achieved.
+Time and Space Complexity
+Let n be the number of characters in the input text and k be the number of distinct characters.
+Operation	Time Complexity	Space Complexity
+Frequency counting	O(n)	O(k)
+Building Huffman tree	O(k log k)	O(k)
+Generating codes	O(k)	O(k)
+Encoding	O(n)	O(n)
+Decoding	O(m)	O(n + k)
+
+
+Here, m is the length of the encoded binary string.
+
+Therefore, the overall time complexity is approximately:
+
+O(n + k log k + m)
+
+Since k is usually much smaller than n, Huffman encoding is generally efficient for large texts.
+Important Functions and Classes
+1. Counter(text)
+   Counts how many times each character occurs in the input text. Characters with higher frequencies will generally receive shorter Huffman codes.
+2. Node class
+   Represents a node in the Huffman tree. It stores:
+   - frequency – frequency of the character or combined frequency.
+   - symbol – the character for a leaf node.
+   - left and right – references to child nodes.
+3. is_leaf()
+   Checks whether a node is a leaf. A leaf represents an actual character in the Huffman tree.
+4. heapq.heapify(heap)
+   Converts the list of nodes into a min-heap, allowing the node with the smallest frequency to be accessed efficiently.
+5. heapq.heappop(heap)
+   Removes and returns the node with the smallest frequency. It is used to select the two least frequent nodes.
+6. heapq.heappush(heap, parent)
+   Inserts the newly created combined node back into the min-heap.
+7. build_tree(text)
+   The main greedy algorithm. It repeatedly combines the two least frequent nodes until the complete Huffman tree is created.
+8. generate_codes(node, code, table)
+   Traverses the Huffman tree recursively. A left movement adds 0, and a right movement adds 1, generating the binary code for each character.
+9. encode(text, codes)
+   Converts the original text into a binary string by replacing each character with its Huffman code.
+10. decode(encoded, root)
+    Reconstructs the original text by following the Huffman tree according to each 0 and 1 in the encoded data.
+Greedy Strategy
+The important DAA concept in this program is the greedy approach. At every step, the algorithm selects the two characters/nodes with the smallest frequencies and merges them. This locally optimal choice eventually produces a Huffman tree that minimizes the total weighted path length, giving an efficient prefix-free variable-length encoding.
+Conclusion
+Huffman Encoding is a greedy algorithm used for lossless data compression. Frequently occurring characters receive shorter binary codes, while less frequent characters receive longer codes. Because no Huffman code is a prefix of another code, the encoded data can be decoded without ambiguity. The use of a min-heap (heapq) makes the greedy selection efficient, with the tree construction taking O(k log k) time.
+
+"""
+
+# %% Step 1: Imports
+import heapq
+from collections import Counter
+
+# %% Step 2: Input text
+# Change the text and re-run this cell plus the steps below it.
+text = "huffman coding is a greedy algorithm"
+
+# %% Step 3: Tree node
+class Node:
+    """Huffman tree node: a leaf (character) or a merged internal node."""
+
+    def __init__(self, frequency, symbol=None, left=None, right=None):
+        self.frequency = frequency
+        self.symbol = symbol
+        self.left = left
+        self.right = right
+
+    def is_leaf(self):
+        return self.left is None and self.right is None
+
+    def __lt__(self, other):
+        return self.frequency < other.frequency
+
+# %% Step 4: Build the Huffman tree
+def build_tree(text):
+    """Greedy part: merge the two least frequent nodes until one root remains."""
+    frequencies = Counter(text)
+    heap = [Node(freq, symbol=ch) for ch, freq in frequencies.items()]
+    heapq.heapify(heap)
+
+    if len(heap) == 1:
+        only = heapq.heappop(heap)
+        return Node(only.frequency, left=only)
+
+    while len(heap) > 1:
+        left = heapq.heappop(heap)
+        right = heapq.heappop(heap)
+        parent = Node(left.frequency + right.frequency, left=left, right=right)
+        heapq.heappush(heap, parent)
+    return heap[0]
+
+# %% Step 5: Generate the codes
+def generate_codes(node, code="", table=None):
+    """Walk the tree: left = 0, right = 1; leaves collect their codes."""
+    if table is None:
+        table = {}
+    if node.is_leaf():
+        table[node.symbol] = code or "0"
+        return table
+    generate_codes(node.left, code + "0", table)
+    generate_codes(node.right, code + "1", table)
+    return table
+
+# %% Step 6: Encode and decode
+def encode(text, codes):
+    """Replace every character by its variable-length code."""
+    return "".join(codes[ch] for ch in text)
+
+def decode(encoded, root):
+    """Walk the tree one bit at a time; a leaf emits one character."""
+    decoded, node = [], root
+    for bit in encoded:
+        node = node.left if bit == "0" else node.right
+        if node.is_leaf():
+            decoded.append(node.symbol)
+            node = root
+    return "".join(decoded)
+
+# %% Step 7: Run the full pipeline
+root = build_tree(text)
+codes = generate_codes(root)
+
+print("Huffman Codes:")
+for char, code_value in sorted(codes.items()):
+    display = "[space]" if char == " " else char
+    print(f"  {display} : {code_value}")
+
+encoded = encode(text, codes)
+decoded = decode(encoded, root)
+
+print(f"\nOriginal text : {text}")
+print(f"Encoded text  : {encoded}")
+print(f"Decoded text  : {decoded}")
+print(f"Bits: {len(text) * 8} (ASCII) -> {len(encoded)} (Huffman)")
+print(f"Compression   : {len(encoded) / (len(text) * 8) * 100:.1f}% of ASCII")
+
+# %% Step 8: Observation
+print("\nObservation")
+print("  The most frequent characters get the shortest codes. No code is a")
+print("  prefix of another, so the decoder never has to guess where a code ends.")

@@ -1,0 +1,190 @@
+"""
+Explanation
+This Python program solves the Tower of Hanoi problem using recursion. The problem consists of three pegs—A (source), B (auxiliary), and C (destination)—and n disks arranged from largest at the bottom to smallest at the top. The objective is to move all disks from peg A to peg C while following two rules: only one disk can be moved at a time, and a larger disk can never be placed on a smaller disk. The main function tower_of_hanoi() solves the problem recursively. To move n disks, it first moves the top n-1 disks from the source to the auxiliary peg, then moves the largest disk directly to the destination, and finally moves the n-1 disks from the auxiliary peg to the destination. The base case is n == 1, where only one direct move is required. Each move is stored in MOVE_LOG or the moves list as (disk, source, destination). The program then prints all moves, calculates the total number of moves, and uses show_trace() to display the state of all three pegs after every move. Finally, it compares the calculated number of moves with the mathematical formula 2ⁿ − 1.
+Time and Space Complexity
+The recurrence relation is:
+T(n) = 2T(n - 1) + 1
+
+with:
+T(1) = 1
+
+Solving this recurrence gives:
+
+T(n) = 2ⁿ − 1
+Aspect	Complexity
+Time Complexity	O(2ⁿ)
+Space Complexity (recursion stack)	O(n)
+Number of moves	2ⁿ − 1
+Space including stored moves	O(2ⁿ)
+
+
+The recursive algorithm itself requires O(n) stack space because the deepest recursion contains n calls. However, this particular program stores every move in a list, so the total memory used by the complete program is O(2ⁿ).
+Important Functions and Concepts
+1. tower_of_hanoi(n, source, auxiliary, destination, moves)
+   This is the main recursive function. It generates the sequence of moves required to transfer all n disks.
+2. Base Case
+   if n == 1:    moves.append((1, source, destination))    return moves
+   
+   
+   When only one disk remains, it can be moved directly from the source to the destination.
+3. Recursive Calls
+   tower_of_hanoi(n - 1, source, destination, auxiliary, moves)
+   
+   
+   Moves the top n-1 disks to the auxiliary peg.
+   moves.append((n, source, destination))
+   
+   
+   Moves the largest disk to the destination.
+   tower_of_hanoi(n - 1, auxiliary, source, destination, moves)
+   
+   
+   Moves the n-1 disks from the auxiliary peg to the destination.
+4. show_trace(n)
+   Simulates the actual movement of disks and displays the state of pegs A, B, and C after every move.
+5. append()
+   Adds each generated move to the moves list and is also used to place a disk onto a peg.
+6. pop()
+   Removes the top disk from the source peg when a move is performed.
+7. range(1, 16)
+   Tests the algorithm for disk counts from 1 to 15 and compares the actual number of moves with 2ⁿ - 1.
+Working of the Recursive Algorithm
+For 3 disks, the algorithm works conceptually as follows:
+Move disk 1: A → C
+Move disk 2: A → B
+Move disk 1: C → B
+Move disk 3: A → C
+Move disk 1: B → A
+Move disk 2: B → C
+Move disk 1: A → C
+
+Therefore:
+
+Total moves = 7 = 2³ − 1
+
+For n = 4:
+
+Total moves = 2⁴ − 1 = 15
+
+For n = 10:
+
+Total moves = 2¹⁰ − 1 = 1023
+
+The number of moves increases exponentially as the number of disks increases.
+Why the Peg Arguments Change
+An important part of this implementation is that the function does not permanently assume that A is the source, B is the auxiliary, and C is the destination.
+
+For example:
+tower_of_hanoi(n - 1, source, destination, auxiliary, moves)
+
+
+Here, the roles of the pegs are changed for the recursive subproblem. This makes the function flexible and allows the same logic to solve every smaller Tower of Hanoi problem.
+Conclusion
+The Tower of Hanoi is a classic example of a recursive algorithm. The problem is divided into two smaller problems of n-1 disks with one direct move of the largest disk between them. The number of required moves is exactly 2ⁿ − 1, giving an O(2ⁿ) time complexity. The recursion itself requires O(n) stack space, although this program uses O(2ⁿ) total storage because it saves every move in a list. The problem demonstrates how recursion can provide a simple and elegant solution to a problem whose number of operations grows exponentially.
+
+"""
+
+"""
+QUESTION 6 (DAA):
+Write a recursive program to solve the Tower of Hanoi problem.
+
+HOW IT WORKS
+    Three pegs: A (source), B (auxiliary), C (destination). Move n disks from
+    A to C so that only the top disk moves at a time and a larger disk never
+    rests on a smaller one.
+
+    To move n disks from source to destination:
+        1. move the top n-1 disks from source to auxiliary (using destination),
+        2. move the largest disk from source to destination,
+        3. move the n-1 disks from auxiliary to destination (using source).
+
+    Base case: n = 1 is a single direct move. The peg names rotate in every
+    recursive call, so the function takes them as arguments instead of
+    hard-coding A, B and C.
+
+COMPLEXITY
+    Recurrence : T(n) = 2 * T(n - 1) + 1, with T(1) = 1
+    Moves      : T(n) = 2^n - 1
+    Time       : O(2^n) - the output alone has 2^n - 1 lines
+    Space      : O(n)   - one stack frame per disk
+
+STEPS
+    1. Move list container
+    2. Input number of disks
+    3. Recursive algorithm
+    4. Print the moves for n disks
+    5. Show the peg state after every move
+    6. Compare the move count with 2^n - 1
+    7. Observation
+
+RUN
+    python3 daa/py6_TowerOfHanoi.py
+
+    In Jupyter, open py6_TowerOfHanoi.ipynb or split this file at the
+    "# %%" markers. This practical needs no imports.
+"""
+
+# %% Step 1: Move list container
+# Every solved move is stored as (disk, from_peg, to_peg) so the recursion can
+# be printed afterwards without mixing printing into the algorithm.
+MOVE_LOG = []
+
+# %% Step 2: Input number of disks
+# Change n and re-run this cell plus the steps below it. Try 3 first: it gives
+# the classic 7-move solution. Above ~20 the output becomes very long.
+disks = 3
+
+# %% Step 3: Recursive algorithm
+def tower_of_hanoi(n, source="A", auxiliary="B", destination="C", moves=None):
+    """Move n disks source -> destination via auxiliary; return the move list."""
+    if moves is None:
+        moves = []
+
+    if n == 1:
+        moves.append((1, source, destination))
+        return moves
+
+    tower_of_hanoi(n - 1, source, destination, auxiliary, moves)
+    moves.append((n, source, destination))
+    tower_of_hanoi(n - 1, auxiliary, source, destination, moves)
+    return moves
+
+# %% Step 4: Print the moves for n disks
+solution = tower_of_hanoi(disks)
+
+print(f"Moving {disks} disks from A to C")
+print()
+for number, (disk, source, destination) in enumerate(solution, start=1):
+    print(f"{number:>3}. Move disk {disk} from {source} to {destination}")
+
+print(f"\nTotal moves = {len(solution)}  (= 2^{disks} - 1 = {2 ** disks - 1})")
+
+# %% Step 5: Show the peg state after every move
+# The bottom of each list is the largest disk, just like a real peg.
+def show_trace(n):
+    """Replay the solution and print the three pegs after each move."""
+    pegs = {"A": list(range(n, 0, -1)), "B": [], "C": []}
+    print(f"\nStart   A: {pegs['A']}  B: {pegs['B']}  C: {pegs['C']}")
+
+    for step, (disk, source, destination) in enumerate(
+            tower_of_hanoi(n), start=1):
+        pegs[destination].append(pegs[source].pop())
+        print(f"{step:>3}. disk {disk}: {source} -> {destination}   "
+              f"A: {pegs['A']}  B: {pegs['B']}  C: {pegs['C']}")
+
+
+show_trace(disks)
+
+# %% Step 6: Compare the move count with 2^n - 1
+print(f"\n{'disks':>5} {'moves':>8} {'2^n - 1':>8} {'match':>7}")
+for n in range(1, 16):
+    counted = len(tower_of_hanoi(n))
+    expected = 2 ** n - 1
+    print(f"{n:>5} {counted:>8,} {expected:>8,} {str(counted == expected):>7}")
+
+# %% Step 7: Observation
+print("\nObservation")
+print("  The number of moves doubles plus one for every extra disk, so the")
+print("  count is exactly 2^n - 1. The recursion only needs n stack frames,")
+print("  which is why the space complexity is O(n) even though the time is")
+print("  exponential.")

@@ -1,0 +1,79 @@
+"""
+Explanation
+
+This Python program calculates the nth Fibonacci number using two different approaches: recursive and iterative (non-recursive). First, the program imports the time module and takes an input value n (here, n = 25). The fibonacci_recursive() function follows the Fibonacci definition directly: if n is 0 or 1, it returns n; otherwise, it recursively calls itself for n-1 and n-2 and adds the results. This approach repeatedly calculates the same Fibonacci values, making it inefficient for larger inputs. The fibonacci_iterative() function uses a loop and two variables, previous and current, to store only the last two Fibonacci numbers and calculate each next value once. The program then uses time.perf_counter() to measure and compare the execution time of both methods. Finally, it prints the Fibonacci results, execution times, complexity analysis, and an observation showing that the iterative method is much faster as n increases.
+Time and Space Complexity
+Method	Time Complexity	Space Complexity
+Recursive	O(2ⁿ) approximately	O(n)
+Iterative / Non-recursive	O(n)	O(1)
+
+
+- Recursive: The function creates many repeated calls for the same subproblems, resulting in exponential time. The maximum depth of the recursion is n, so the call stack requires O(n) space.
+- Iterative: The loop calculates every Fibonacci number only once, requiring O(n) time. It stores only two values at a time, so it uses O(1) extra space.
+Important Functions Used
+1. fibonacci_recursive(n)
+   Calculates the Fibonacci number using recursion and directly implements F(n) = F(n-1) + F(n-2).
+2. fibonacci_iterative(n)
+   Calculates the Fibonacci number using a loop while storing only the previous two values.
+3. time.perf_counter()
+   Measures the execution time of each Fibonacci implementation with high-resolution timing.
+4. print()
+   Displays the calculated Fibonacci values, execution times, ratio, and complexity analysis.
+5. range(2, n + 1)
+   Generates the sequence of loop values needed to calculate Fibonacci numbers from the second term through the nth term.
+Conclusion: The recursive method is simple and closely matches the mathematical definition, but it is inefficient because it repeatedly solves the same subproblems. The iterative method is much more efficient, requiring O(n) time and O(1) space, so it is preferred for calculating Fibonacci numbers for larger values of n.
+"""
+
+# %% Step 1: Imports
+import time
+
+# %% Step 2: Input value
+# Change n and re-run this cell plus the steps below it. Use 30 or 35 to see
+# the recursive version slow down.
+n = 25
+
+# %% Step 3: Recursive version
+def fibonacci_recursive(n):
+    """Naive recursion straight from the definition: exponential time."""
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
+    return fibonacci_recursive(n - 1) + fibonacci_recursive(n - 2)
+
+# %% Step 4: Iterative version
+def fibonacci_iterative(n):
+    """Loop version: O(n) time, O(1) space, each term computed once."""
+    if n <= 1:
+        return n
+    previous, current = 0, 1
+    for _ in range(2, n + 1):
+        previous, current = current, previous + current
+    return current
+
+# %% Step 5: Run both versions and measure time
+start = time.perf_counter()
+result_iterative = fibonacci_iterative(n)
+time_iterative = time.perf_counter() - start
+
+start = time.perf_counter()
+result_recursive = fibonacci_recursive(n)
+time_recursive = time.perf_counter() - start
+
+print(f"Iterative : F({n}) = {result_iterative}  ({time_iterative:.6f} s)")
+print(f"Recursive : F({n}) = {result_recursive}  ({time_recursive:.6f} s)")
+
+if time_iterative > 0:
+    ratio = time_recursive / time_iterative
+    print(f"Recursive / iterative time ratio: {ratio:,.0f}x")
+
+# %% Step 6: Complexity analysis
+print("\nComplexity analysis")
+print("  Iterative -> time O(n), space O(1)")
+print("  Recursive -> time ~O(2^n), space O(n) call stack")
+
+# %% Step 7: Observation
+print("\nObservation")
+print("  The iterative result becomes instant as n grows, while the recursive")
+print("  result slows down exponentially because the same subproblems are")
+print("  solved again and again.")

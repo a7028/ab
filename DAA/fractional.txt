@@ -1,0 +1,134 @@
+"""
+Explanation
+
+Explanation
+This Python program solves the Fractional Knapsack Problem using a greedy strategy. In this problem, each item has a value and a weight, and unlike the 0/1 Knapsack problem, an item can be divided into fractions. First, the program uses namedtuple to create an Item structure containing the item number, value, weight, and value-to-weight ratio. The fractional_knapsack() function sorts all items in decreasing order of their value/weight ratio because the greedy strategy always chooses the item that provides the highest value for each unit of weight. It then selects complete items as long as they fit within the remaining capacity. If the next item is too heavy, only the required fraction of that item is selected to completely fill the knapsack. The total value is calculated by adding the values of the selected complete items and the proportional value of the fractional item. For the given input, the capacity is 50, and the items have ratios 6, 5, and 4 respectively. Therefore, Item 1 and Item 2 are selected completely, and 2/3 of Item 3 is selected, giving a maximum value of 240.
+Time and Space Complexity
+Operation	Time Complexity	Space Complexity
+Calculate ratios	O(n)	O(n)
+Sort items by ratio	O(n log n)	O(n)
+Select items	O(n)	O(1)
+Overall	O(n log n)	O(n)
+
+
+The dominant operation is sorting the items, so the overall time complexity is O(n log n). The extra space is O(n) because the sorted list of items is stored.
+Important Functions and Concepts
+1. namedtuple()
+   Creates a lightweight object called Item with named fields:
+   - index – item number
+   - value – item's value
+   - weight – item's weight
+   - ratio – value/weight ratio
+2. sorted()
+   Sorts the items according to their value/weight ratio.
+   sorted(items, key=lambda item: item.ratio, reverse=True)
+   
+   
+   reverse=True ensures that the highest ratio comes first.
+3. lambda function
+   Used to specify that sorting should be based on item.ratio.
+4. fractional_knapsack(items, capacity)
+   This is the main function that implements the greedy algorithm. It selects items with the highest value per unit of weight first.
+5. remaining
+   Stores the remaining capacity of the knapsack. It decreases whenever an item or a fraction of an item is selected.
+6. fraction
+   When an entire item cannot fit, this calculates the fraction that can be placed:
+   fraction = remaining / item.weight
+7. total_value
+   Stores the total value of all selected items and fractions.
+Greedy Strategy
+The key idea is to select the item with the highest value/weight ratio first. For example:
+Item	Value	Weight	Value/Weight
+1	60	10	6
+2	100	20	5
+3	120	30	4
+
+
+For capacity 50:
+- Item 1 → take 100% → value = 60, remaining capacity = 40
+- Item 2 → take 100% → value = 100, remaining capacity = 20
+- Item 3 → take 20/30 = 2/3 → value = 80
+Therefore:
+
+Maximum value = 60 + 100 + 80 = 240
+Conclusion
+The Fractional Knapsack problem can be solved optimally using a greedy approach because items can be divided. By selecting items in decreasing order of their value/weight ratio, the algorithm obtains the maximum possible value. The algorithm has O(n log n) time complexity, mainly due to sorting, and O(n) space complexity. This greedy strategy works for Fractional Knapsack, but the same simple approach does not guarantee an optimal solution for the 0/1 Knapsack problem, where items cannot be divided.
+
+"""
+
+"""
+QUESTION 3 (DAA):
+Write a program to solve a fractional Knapsack problem using a greedy method.
+
+HOW IT WORKS
+    1. Compute the value/weight ratio of every item.
+    2. Sort the items by that ratio in decreasing order.
+    3. Take whole items while they fit. When the next item does not fit, take
+       the fraction that fills the remaining capacity and stop.
+
+    Taking the best deal first is optimal for the fractional version because
+    any solution can be improved by swapping a worse deal for a better one.
+
+STEPS
+    1. Imports
+    2. Input items and capacity
+    3. Greedy algorithm
+    4. Run and print the selection
+    5. Observation
+
+RUN
+    python3 daa/py3_FractionalKnapsack.py
+
+    In Jupyter, open py3_FractionalKnapsack.ipynb or split this file at the
+    "# %%" markers.
+"""
+
+# %% Step 1: Imports
+from collections import namedtuple
+
+# %% Step 2: Input items and capacity
+# Each item is (index, value, weight, value/weight). Change the list or the
+# capacity and re-run this cell plus the steps below it.
+Item = namedtuple("Item", ["index", "value", "weight", "ratio"])
+
+items = [
+    Item(1, 60, 10, 60 / 10),
+    Item(2, 100, 20, 100 / 20),
+    Item(3, 120, 30, 120 / 30),
+]
+capacity = 50
+
+for item in items:
+    print(f"Item {item.index}: value={item.value}, weight={item.weight}, "
+          f"ratio={item.ratio:.2f}")
+print("Capacity:", capacity)
+
+# %% Step 3: Greedy algorithm
+def fractional_knapsack(items, capacity):
+    """Greedy fill: best-ratio items first, fraction at the end."""
+    items = sorted(items, key=lambda item: item.ratio, reverse=True)
+
+    total_value, remaining = 0.0, capacity
+    print("\nSelected Items:")
+    for item in items:
+        if remaining <= 0:
+            break
+        if item.weight <= remaining:
+            remaining -= item.weight
+            total_value += item.value
+            print(f"Item {item.index} -> 100% selected")
+        else:
+            fraction = remaining / item.weight
+            total_value += item.value * fraction
+            print(f"Item {item.index} -> {fraction * 100:.2f}% selected")
+            remaining = 0
+    return total_value
+
+# %% Step 4: Run and print the selection
+total = fractional_knapsack(items, capacity)
+print(f"\nMaximum value = {total:.2f}")
+
+# %% Step 5: Observation
+print("\nObservation")
+print("  Items with the highest value per unit weight are taken first. Only")
+print("  the last item is split, so the knapsack is filled exactly.")

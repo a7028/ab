@@ -1,0 +1,137 @@
+"""
+Explanation
+This Python program solves the N-Queens problem using the Backtracking technique, with the first queen fixed at position (0, 0). The objective is to place N queens on an N × N chessboard such that no two queens attack each other. The program represents the chessboard using a matrix where 1 represents a queen and 0 represents an empty position. The run() function takes the value of N, creates the board, and places the first queen at (0, 0). The place_queens() function then tries to place one queen in each remaining row. Before placing a queen, is_safe() checks whether another queen exists in the same column or on either diagonal. If the position is safe, the queen is placed and the program recursively moves to the next row. If a later placement becomes impossible, the program backtracks by removing the previously placed queen (board[row][column] = 0) and tries another position. This process continues until all queens are successfully placed or all possible positions have been tried. Finally, print_board() displays the solution matrix. Because the first queen is fixed at (0, 0), the program finds only solutions satisfying that specific condition.
+Time and Space Complexity
+For the general N-Queens problem:
+Operation	Time Complexity	Space Complexity
+is_safe()	O(N)	O(1)
+Backtracking search	O(N!) approximately	O(N²)
+Board storage	—	O(N²)
+Overall	O(N × N!) approximately	O(N²)
+
+
+- Time Complexity: Approximately O(N × N!) because the algorithm may explore a large number of possible queen arrangements, and checking whether a position is safe takes up to O(N) time.
+- Space Complexity: O(N²) for storing the N × N board, plus O(N) recursion stack space.
+- The actual running time can be much smaller for some values of N because backtracking eliminates invalid arrangements early.
+Important Functions
+1. is_safe(board, row, column)
+   Checks whether a queen can safely be placed at the specified position. It checks:
+   - The same column.
+   - The upper-left diagonal.
+   - The upper-right diagonal.
+   Since queens are placed row by row from top to bottom, only the rows above the current row need to be checked.
+2. place_queens(board, row)
+   This is the main backtracking function. It attempts to place one queen in the current row. If a placement eventually leads to a solution, it returns True. Otherwise, it removes the queen and tries another column.
+3. print_board(board)
+   Displays the final chessboard matrix, where:
+   - 1 = Queen
+   - 0 = Empty position
+4. run()
+   Takes the value of N, creates the board, fixes the first queen at (0, 0), and starts the backtracking process.
+5. input()
+   Reads the value of N from the user.
+Backtracking Strategy
+The important DAA concept here is Backtracking.
+
+The algorithm follows these steps:
+1. Fix the first queen at (0, 0).
+2. Start from the next row.
+3. Try each column in that row.
+4. Use is_safe() to check whether the position is valid.
+5. If safe, place the queen.
+6. Recursively move to the next row.
+7. If no valid position is available in a later row, remove the previously placed queen and try another position.
+8. Continue until all N queens are placed.
+The key backtracking statement is:
+board[row][column] = 0
+
+
+This removes a queen when the current choice does not lead to a solution.
+Example
+For N = 4, the program initially fixes:
+1 0 0 0
+0 0 0 0
+0 0 0 0
+0 0 0 0
+
+The algorithm then searches for safe positions for the remaining three queens. If it reaches a position where no safe column exists, it goes back and changes an earlier queen's position.
+
+However, because the first queen is fixed at (0, 0), the standard 4-Queens solution is not possible with that particular fixed position. Therefore, the program will report:
+No solution exists with the first queen at (0, 0).
+
+For some values of N, a solution with the first queen fixed at (0, 0) does exist.
+Conclusion
+The N-Queens problem is a classic example of the Backtracking technique. Instead of checking every complete board arrangement, the algorithm builds the solution row by row and immediately abandons a partial arrangement when it becomes invalid. This significantly reduces unnecessary searching compared with brute force. The algorithm has approximately O(N × N!) time complexity and O(N²) space complexity for the board. In this program, fixing the first queen at (0, 0) further restricts the possible solutions.
+
+"""
+
+
+
+def is_safe(board, row, column):
+    """Check the column and both diagonals against queens placed above."""
+    for above in range(row):
+        if board[above][column]:
+            return False
+
+    above = row - 1
+    left = column - 1
+    while above >= 0 and left >= 0:
+        if board[above][left]:
+            return False
+        above -= 1
+        left -= 1
+
+    above = row - 1
+    right = column + 1
+    while above >= 0 and right < len(board):
+        if board[above][right]:
+            return False
+        above -= 1
+        right += 1
+
+    return True
+
+
+def place_queens(board, row):
+    """Place one queen per row, returning True when the board is solved."""
+    size = len(board)
+    if row == size:
+        return True
+
+    if row == 0:
+        return place_queens(board, row + 1)
+
+    for column in range(size):
+        if is_safe(board, row, column):
+            board[row][column] = 1
+            if place_queens(board, row + 1):
+                return True
+            board[row][column] = 0
+
+    return False
+
+
+def print_board(board):
+    """Print the solution matrix, matching the C++ program's output."""
+    print("\nSolution Matrix:")
+    for row in board:
+        print("".join(f"{cell} " for cell in row))
+
+
+def run():
+    size = int(input("Enter the value of N: "))
+    if size < 1:
+        print("N must be at least 1.")
+        return
+
+    board = [[0] * size for _ in range(size)]
+    board[0][0] = 1
+
+    if place_queens(board, 0):
+        print_board(board)
+    else:
+        print("No solution exists with the first queen at (0, 0).")
+
+
+if __name__ == "__main__":
+    run()
