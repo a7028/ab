@@ -1,0 +1,251 @@
+Explanation
+This Solidity program is a Student Data Management smart contract that stores and retrieves student information on the blockchain. It uses a struct called Student to store the roll number, name, age, and course of each student, and a dynamic array students to store multiple student records. The addStudent() function adds a new student to the array, while getStudent() retrieves the details of a student using their index. getStudentCount() returns the total number of students. The contract also demonstrates Solidity's receive and fallback functions for handling Ether sent to the contract. The receive() function is called when Ether is sent without any data, while the fallback() function is called when unknown function data is sent. The counters receiveCallCount and fallbackCallCount record how many times these functions are triggered, and totalEtherReceived records the total Ether received in Wei.
+Important Functions and Concepts
+- struct Student – Defines the data fields for each student.
+- students[] – Dynamic array that stores all student records.
+- addStudent() – Adds a new student to the blockchain.
+- getStudent(index) – Retrieves student details using an index.
+- getStudentCount() – Returns the number of stored students.
+- require() – Checks that the requested student index is valid.
+- receive() – Automatically executes when Ether is sent without transaction data.
+- fallback() – Executes when unknown data is sent to the contract.
+- msg.value – Contains the amount of Ether received.
+- view – Indicates that a function only reads data and does not modify the blockchain.
+- recordEther() – Adds received Ether to totalEtherReceived.
+Example
+If we add:
+Roll No : 1
+Name    : Rahul
+Age     : 21
+Course  : Computer Engineering
+
+Calling getStudent(0) returns:
+1
+Rahul
+21
+Computer Engineering
+
+If 0.001 ETH is sent to trigger the fallback function:
+fallbackCallCount  = 1
+totalEtherReceived = 1000000000000000 Wei
+
+Remix Execution
+The practical can be performed using Remix IDE + MetaMask + Sepolia testnet:
+1. Create StudentData.sol in Remix.
+2. Compile it using Solidity 0.8.20.
+3. Connect Remix to MetaMask using Injected Provider.
+4. Select the Sepolia test network.
+5. Deploy the contract.
+6. Use addStudent() to store student details.
+7. Use getStudent() and getStudentCount() to read the data.
+8. Send a small amount of test ETH to demonstrate receive()/`fallback()` behavior.
+9. Check the transaction on Sepolia Etherscan to observe gas used, gas price, gas limit, transaction fee, and status.
+Important: Ether sent to this contract cannot be withdrawn because the contract has no withdrawal function, so only use a small amount of Sepolia test ETH.
+
+
+
+
+
+
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract StudentData {
+
+    // Structure to store student details
+    struct Student {
+        uint rollNo;
+        string name;
+        uint age;
+        string course;
+    }
+
+    // Dynamic array to store student records
+    Student[] public students;
+
+    uint public fallbackCallCount;
+    uint public receiveCallCount;
+    uint public totalEtherReceived;
+
+    // Function to add student details
+    function addStudent(
+        uint _rollNo,
+        string memory _name,
+        uint _age,
+        string memory _course
+    ) public {
+        students.push(Student(_rollNo, _name, _age, _course));
+    }
+
+    // Function to get student details
+    function getStudent(uint index)
+        public
+        view
+        returns (uint, string memory, uint, string memory)
+    {
+        require(index < students.length, "Invalid student index");
+
+        Student memory s = students[index];
+
+        return (s.rollNo, s.name, s.age, s.course);
+    }
+
+    // Function to get total number of students
+    function getStudentCount() public view returns (uint) {
+        return students.length;
+    }
+
+    // Internal function to record received Ether
+    function recordEther() internal {
+        totalEtherReceived += msg.value;
+    }
+
+    // Receive function: called when Ether is sent without data
+    receive() external payable {
+        receiveCallCount++;
+        recordEther();
+    }
+
+    // Fallback function: called when unknown data is sent
+    fallback() external payable {
+        fallbackCallCount++;
+        recordEther();
+    }
+}
+
+
+
+
+steps:
+
+How to execute this practical using Remix IDE
+We will use Remix IDE, MetaMask and Sepolia testnet.
+Step 1: Open Remix IDE
+Visit: Remix IDE
+1. Open Remix IDE in Chrome.
+2. Click File Explorer.
+3. Create a new file named StudentData.sol.
+4. Paste the Solidity program.
+5. Save the file.
+
+Step 2: Compile the contract
+1. Open the Solidity Compiler tab.
+2. Select compiler version 0.8.20 or a compatible version.
+3. Click Compile StudentData.sol.
+4. Check that the contract compiles successfully.
+
+Step 3: Connect MetaMask
+1. Open MetaMask.
+2. Select the Sepolia test network.
+3. Make sure you have Sepolia test ETH.
+4. Go back to Remix.
+5. Open Deploy & Run Transactions.
+6. Select Injected Provider - MetaMask under Environment.
+7. Approve the connection in MetaMask.
+8. Check that the selected network is Sepolia.
+Step 4: Deploy the contract
+
+1. Select StudentData in the Contract dropdown.
+2. Click Deploy.
+3. MetaMask opens a transaction confirmation window.
+4. Check the gas fee.
+5. Click Confirm.
+6. Wait until the deployment transaction is successful.
+7. Expand the deployed contract under Deployed Contracts.
+Contract deployed
+6. Perform the practical operations
+Operation 1: Add student data
+Expand the deployed contract and find the addStudent function.
+
+Enter these values:
+Sample student record
+Field	Value
+_rollNo	1
+_name	Rahul
+_age	21
+_course	Computer Engineering
+
+In Remix, enter:
+1
+Rahul
+21
+Computer Engineering
+
+
+Click addStudent and confirm the transaction in MetaMask.
+
+Add another student if you want to demonstrate multiple records:
+Field	Value
+Roll number	2
+Name	Priya
+Age	22
+Course	Information Technology
+
+Operation 2: Display student data
+1. Find the getStudent function.
+2. Enter index 0.
+3. Click the button.
+4. Remix displays the first student's details.
+Expected result:
+1
+Rahul
+21
+Computer Engineering
+
+
+You can also call getStudentCount() to see the total number of students.
+
+Note: getStudent and getStudentCount are view functions. When called normally from Remix, 
+they are read-only calls and do not require a paid transaction.
+Operation 3: Test the fallback function
+This is an important part of the practical.
+
+Follow these steps:
+1. Copy the deployed contract address from Remix.
+2. Open MetaMask.
+3. Make sure Sepolia is selected.
+4. Click Send.
+5. Paste the deployed contract address as the recipient.
+6. Enter a small amount, for example 0.001 ETH.
+7. Review the transaction.
+8. Confirm the transaction.
+Since our contract does not have a receive() function, sending ETH with empty transaction data triggers the payable 
+fallback function.
+
+After the transaction succeeds, return to Remix and click:
+- fallbackCallCount
+- totalEtherReceived
+Expected values for one successful fallback transaction:
+fallbackCallCount = 1
+
+totalEtherReceived = 1000000000000000
+
+
+The second value is in Wei, equivalent to 0.001 ETH.
+
+Important: Send only a small amount of Sepolia test ETH. The contract has no withdrawal function, so Ether sent to it will remain locked in this particular practical contract.
+7. Observe transaction fee and gas values
+This is another important part of your experiment.
+
+You should observe the gas details for three transactions:
+1. Contract deployment.
+2. Adding student data.
+3. Sending Ether to trigger fallback.
+
+Steps to check gas values
+1. Open Remix.
+2. Find the transaction in the transaction log or MetaMask Activity.
+3. Copy its transaction hash.
+4. Open Sepolia Etherscan.
+5. Paste the transaction hash into the search box.
+6. Open the transaction details.
+7. Observe the following values.
+Parameter	Description
+Transaction Hash	Unique transaction identifier
+Gas Used	Actual gas consumed
+Gas Limit	Maximum gas allowed
+Gas Price	Price paid per gas unit
+Transaction Fee	Total gas fee paid
+Status	Success or failure
